@@ -1,0 +1,8 @@
+# docker ignore file 
+.git
+.cache
+.dockerignore
+Dockerfile
+Makefile 
+README.md
+docker-compose.yaml
