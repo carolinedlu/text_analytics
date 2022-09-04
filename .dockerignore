@@ -1,8 +1,8 @@
-# docker ignore file 
+# docker ignore file
 .git
 .cache
 .dockerignore
 Dockerfile
-Makefile 
+Makefile
 README.md
 docker-compose.yaml
