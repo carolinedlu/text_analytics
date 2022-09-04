@@ -1,0 +1,51 @@
+default_language_version:
+  # force all unspecified python hooks to run python3
+  python: python3.8
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.3.0
+    hooks:
+    -   id: check-yaml
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+
+-   repo: https://github.com/psf/black
+    rev: 21.9b0
+    hooks:
+    -   id: black
+        arg: [--safe]
+
+-   repo: https://github.com/PyCQA/flake8
+    rev: 5.0.4
+    hooks:
+    -   id: flake8
+
+-   repo: local
+    hooks:
+    -   id: jupyter-nb-clear-output
+        name: jupyter-nb-clear-output
+        files: \.ipynb$
+        stages: [commit]
+        language: system
+        entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace
+
+-   repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.4.0
+    hooks:
+    -   id: nbqa-black
+        # additional_dependencies: [black==20.8b1]
+    -   id: nbqa-isort
+        # additional_dependencies: [isort==5.6.4]
+    -   id: nbqa-flake8
+
+# run hooks weekly
+ci:
+    autofix_commit_msg: |
+        [pre-commit.ci] auto fixes from pre-commit hooks
+    autofix_prs: true
+    autoupdate_branch: ""
+    autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
+    autoupdate_schedule: weekly
+    skip: []
+    submodules: false
