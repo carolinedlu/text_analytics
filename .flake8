@@ -1,0 +1,16 @@
+[flake8]
+ignore = E501, W503, E402, E266
+# E501: lines that are too long
+# W503: line breaks before a binary
+# E402: module level imports at the top
+# E266: number of hashes for comments
+builtins = c, get_config
+exclude =
+    .cache,
+    .github,
+    docs,
+enable-extensions = G
+extend-ignore =
+    G001, G002, G004, G200, G201, G202,
+    # black adds spaces around ':'
+    E203
