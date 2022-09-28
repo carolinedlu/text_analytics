@@ -24,9 +24,6 @@ wordcloud = "^1.8.2"
 transformers = "^4.22.1"
 sentencepiece = "^0.1.97"
 gensim = "^4.2.0"
-fsspec = "^2022.8.2"
-gcsfs = "^2022.8.2"
-google-auth = "^2.11.1"
 torch = "^1.12.1"
 
 [tool.poetry.dev-dependencies]
