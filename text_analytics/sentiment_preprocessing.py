@@ -13,38 +13,7 @@ from nltk.stem import PorterStemmer, WordNetLemmatizer
 from nltk.stem.snowball import SnowballStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 
-# nltk.download("wordnet")
-
-RAW_DATA_PATH = "https://storage.googleapis.com/text-analytics/data/imdb_data.csv"
-
-SENTIMENT_CLEANED_DATA_PATH = (
-    "https://storage.googleapis.com/text-analytics/data/imdb_data_cleaned.csv"
-)
-
-ACRONYMS = {
-    "asap": "as soon as possible",
-    "btw": "by the way",
-    "diy": "do it yourself",
-    "fb": "facebook",
-    "fomo": "fear of missing out",
-    "fyi": "for your information",
-    "g2g": "got to go",
-    "idk": "i don't know",
-    "imo": "in my opinion",
-    "irl": "in real life",
-    "lmao": "laughing my ass off",
-    "lmk": "let me know",
-    "lol": "laugh out loud",
-    "msg": "message",
-    "noyb": "none of your business",
-    "omg": "oh my god",
-    "rofl": "rolling on the floor laughing",
-    "smh": "shaking my head",
-    "tmi": "too much information",
-    "ttyl": "talk to you later",
-    "wth": "what the hell",
-    "yolo": "you only live once",
-}
+from config import ACRONYMS, RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
 
 
 def convert_lowercase(series: pd.Series) -> pd.Series:
