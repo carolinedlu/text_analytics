@@ -2,9 +2,8 @@ import os
 from pathlib import Path
 
 ROOT_DIR = Path(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
-
+DATA_PATH = ROOT_DIR / "data"
 RAW_DATA_PATH = ROOT_DIR / "data" / "imdb_data.csv"
-
 SENTIMENT_CLEANED_DATA_PATH = ROOT_DIR / "data" / "sentiment_cleaned_data.csv"
 
 ACRONYMS = {
@@ -36,9 +35,10 @@ ACRONYMS = {
 def print_config() -> None:
     print(
         f"""
-    Model parameters 
+    Model parameters
     ------------------
     ROOT_DIR: {ROOT_DIR}
+    DATA_PATH: {DATA_PATH}
     RAW_DATA_PATH: {RAW_DATA_PATH}
     SENTIMENT_CLEANED_DATA_PATH: {SENTIMENT_CLEANED_DATA_PATH}
     """
