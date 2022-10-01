@@ -1,89 +1,20 @@
 import logging
-import os
-import re
-import string
-from typing import Any, List, Union
 
-import nltk
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
-from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer, WordNetLemmatizer
-from nltk.stem.snowball import SnowballStemmer
-from nltk.tokenize import sent_tokenize, word_tokenize
 
-from text_analytics.config import ACRONYMS, RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
+from text_analytics.config import RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
+from text_analytics.preprocessing import (
+    convert_abbreviations,
+    convert_lowercase,
+    lemmatizer,
+    remove_html_tags,
+    remove_non_alnum,
+    remove_punctuation,
+    remove_stopwords,
+    tokenize_words,
+)
 
-
-def convert_lowercase(series: pd.Series) -> pd.Series:
-    return series.str.lower()
-
-
-def remove_html_tags(series: pd.Series) -> pd.Series:
-    return series.str.replace(pat=r"<.*?>", repl="", regex=True)
-
-
-def remove_punctuation(series: pd.Series) -> pd.Series:
-    import string
-
-    punctuations = str.maketrans(dict.fromkeys(string.punctuation))
-    return series.str.translate(punctuations)
-
-
-def convert_abbreviations(series: pd.Series) -> pd.Series:
-    return series.apply(
-        lambda sentence: " ".join(
-            ACRONYMS.get(word) if word in ACRONYMS.keys() else word
-            for word in sentence.split()
-        )
-    )
-
-
-def remove_stopwords(
-    series: pd.Series,
-    stop_words: Union[nltk.corpus.reader.wordlist.WordListCorpusReader, List] = None,
-) -> pd.Series:
-    if stop_words is None:
-        stop_words = set(stopwords.words("english"))
-    return series.apply(
-        lambda sentence: " ".join(
-            word for word in sentence.split() if word not in stop_words
-        )
-    )
-
-
-def tokenize_words(text: str, tokenizer: Any = "word") -> npt.ArrayLike:
-
-    if tokenizer not in ("word", "sentence"):
-        raise ValueError(f"{tokenizer} must be one of (word, sentence)")
-
-    tokens = {"word": word_tokenize(text), "sentence": sent_tokenize(text)}
-    try:
-        return tokens.get(tokenizer)
-    except BaseException as err:
-        print(f"Unexpected err: {err}, Type: {type(err)}")
-        raise
-
-
-def stemming(word_arr: npt.ArrayLike, stemmer: Any = None) -> npt.ArrayLike:
-    if stemmer is None:
-        stemmer = PorterStemmer()
-    try:
-        return [stemmer.stem(word) for word in word_arr]
-    except BaseException as err:
-        print(f"Unexpected err: {err}, Type: {type(err)}")
-        raise
-
-
-def lemmatizer(word_arr: npt.ArrayLike, lemmatizer: Any = None) -> npt.ArrayLike:
-    if lemmatizer is None:
-        lemmatizer = WordNetLemmatizer()
-    try:
-        return [lemmatizer.lemmatize(word) for word in word_arr]
-    except BaseException as err:
-        print(f"Unexpected err: {err}, Type: {type(err)}")
-        raise
 
 def sentiment_text_processing(series: pd.Series) -> pd.Series:
     """
@@ -115,13 +46,14 @@ def sentiment_text_processing(series: pd.Series) -> pd.Series:
     series = series.apply(lambda sentence: tokenize_words(sentence, tokenizer="word"))
 
     logger.info("Remove punctuation")
-    series = series.apply(lambda sentence: [s for s in sentence if s not in string.punctuation])
+    series = remove_punctuation(series)
 
     logger.info("Stemming / Lemmatizing")
     series = series.apply(lambda arr: lemmatizer(arr))
 
     logger.info("Remove non-alphabetic/numeric")
-    series = series.apply(lambda sentence: [s for s in sentence if s.isalnum()])
+    series = remove_non_alnum(series)
+
     return series
 
 
