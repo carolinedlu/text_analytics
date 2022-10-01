@@ -1466,6 +1466,17 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use_chardet_on_py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
+name = "rouge"
+version = "1.0.1"
+description = "Full Python ROUGE Score Implementation (not a wrapper)"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+six = "*"
+
+[[package]]
 name = "scikit-learn"
 version = "1.1.2"
 description = "A set of python modules for machine learning and data mining"
@@ -2057,7 +2068,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "a0f8b095631be634d61262f2c7fb558745eb942f3e6b37aa5a848bb802122515"
+content-hash = "d7fd6ad2127798fad0eeccde70997d30a9ae13a7ac05a85fdb150abde30a10e2"
 
 [metadata.files]
 anyio = [
@@ -2424,6 +2435,7 @@ qtconsole = []
 qtpy = []
 regex = []
 requests = []
+rouge = []
 scikit-learn = []
 scipy = [
     {file = "scipy-1.6.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:a15a1f3fc0abff33e792d6049161b7795909b40b97c6cc2934ed54384017ab76"},
