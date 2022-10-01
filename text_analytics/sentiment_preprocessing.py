@@ -85,7 +85,6 @@ def lemmatizer(word_arr: npt.ArrayLike, lemmatizer: Any = None) -> npt.ArrayLike
         print(f"Unexpected err: {err}, Type: {type(err)}")
         raise
 
-
 def sentiment_text_processing(series: pd.Series) -> pd.Series:
     """
     Takes in a string of text, then performs the following:
@@ -115,14 +114,18 @@ def sentiment_text_processing(series: pd.Series) -> pd.Series:
     logger.info("Tokenizing words")
     series = series.apply(lambda sentence: tokenize_words(sentence, tokenizer="word"))
 
+    logger.info("Remove punctuation")
+    series = series.apply(lambda sentence: [s for s in sentence if s not in string.punctuation])
+
     logger.info("Stemming / Lemmatizing")
     series = series.apply(lambda arr: lemmatizer(arr))
 
+    logger.info("Remove non-alphabetic/numeric")
+    series = series.apply(lambda sentence: [s for s in sentence if s.isalnum()])
     return series
 
 
 if __name__ == "__main__":
-
     log_fmt = "%(asctime)s:%(name)s:%(levelname)s - %(message)s"
     logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger()
