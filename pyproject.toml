@@ -25,6 +25,7 @@ transformers = "^4.22.1"
 sentencepiece = "^0.1.97"
 gensim = "^4.2.0"
 torch = "^1.12.1"
+rouge = "^1.0.1"
 
 [tool.poetry.dev-dependencies]
 

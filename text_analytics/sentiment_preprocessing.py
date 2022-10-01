@@ -13,7 +13,7 @@ from nltk.stem import PorterStemmer, WordNetLemmatizer
 from nltk.stem.snowball import SnowballStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 
-from config import ACRONYMS, RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
+from text_analytics.config import ACRONYMS, RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
 
 
 def convert_lowercase(series: pd.Series) -> pd.Series:
