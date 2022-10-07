@@ -24,14 +24,30 @@ st.set_page_config(layout="wide")
 # -------
 
 
+@st.cache
 def read_in_data():
-    pass
+
+    raw_data = pd.read_csv(RAW_DATA_PATH)
+    cleaned_data = pd.read_csv(SENTIMENT_CLEANED_DATA_PATH)
+
+    return raw_data, cleaned_data
 
 
+@st.cache
 def tokeniser(input_text: str, tokeniser: str) -> str:
-    pass
+
+    input_text = convert_lowercase(input_text)
+    input_text = remove_html_tags(input_text)
+    input_text = remove_stopwords(input_text)
+    print(tokeniser)
+
+    if tokeniser == "Word":
+        return word_tokenize(input_text)
+
+    return sent_tokenize(input_text)
 
 
+@st.cache
 def named_entity_recogniser(input_text: str) -> str:
     pass
 
@@ -41,7 +57,10 @@ def sentiment_analysis(input_text: str):
 
 
 def text_summarisation(input_text: str) -> str:
-    pass
+    extractive_summarizer = ExtractiveTextSummarizer(article=input_text)
+    result = extractive_summarizer.run_article_summary()
+
+    return result
 
 
 # ---------
@@ -50,6 +69,30 @@ def text_summarisation(input_text: str) -> str:
 
 
 def main():
+
+    with st.container():
+        st.markdown("## Group 4 - Text Analytics with Movie Reviews")
+
+        with st.expander("ℹ️ - About this app", expanded=False):
+            st.write("""Sub-caption""")
+
+        st.subheader("NLP Processing Tasks: ")
+
+    tokenise, sentiment, summarise, eda = st.tabs(
+        ["Tokenise Text", "Sentiment Analysis", "Text Summarisation", "Source Data"]
+    )
+
+    with tokenise:
+        pass
+
+    with sentiment:
+        pass
+
+    with summarise:
+        pass
+
+    with eda:
+        pass
 
     hide_streamlit_style = """
             <style>
