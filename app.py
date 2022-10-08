@@ -2,8 +2,11 @@
 # PACKAGES
 # --------
 
+import time
+
 import numpy as np
 import pandas as pd
+import plotly.figure_factory as ff
 import streamlit as st
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
@@ -74,8 +77,12 @@ def main():
         st.markdown("## Group 4 - Text Analytics with Movie Reviews")
 
         with st.expander("ℹ️ - About this app", expanded=False):
-            st.write("""Sub-caption""")
 
+            st.write(
+                """
+                Sub-caption
+                """
+            )
         st.subheader("NLP Processing Tasks: ")
 
     tokenise, sentiment, summarise, eda = st.tabs(
@@ -83,16 +90,76 @@ def main():
     )
 
     with tokenise:
-        pass
+
+        st.markdown("#### Text Tokeniser")
+        test_button = st.radio("Tokeniser to use", ["Word", "Sentence"])
+        message = st.text_area("Enter review to tokenize", "Text Here", height=200)
+
+        if st.button("Tokenise"):
+            with st.spinner("Tokenising..."):
+                token_result = tokeniser(message, test_button)
+                time.sleep(2)
+            st.success(f"Tokens: {token_result}")
 
     with sentiment:
-        pass
+
+        st.markdown("#### Perform Sentiment Analysis")
+        sentiment_analysis_button = st.radio(
+            "Sentiment Analyser to use",
+            ["Logistic Regression", "Random Forest", "LSTM", "Pre-trained BERT"],
+        )
+        message = st.text_area(
+            "Enter review to perform Sentiment Analysis on", "Text Here", height=200
+        )
+
+        if st.button("Analyse"):
+            with st.spinner("Calculating sentiment..."):
+                sentiment_result = "placeholder"
+                time.sleep(2)
+            st.success(f"Review sentiment: {sentiment_result}")
 
     with summarise:
-        pass
+
+        st.markdown("#### Perform Text Summarisation")
+        summariser = st.radio("Text summariser to use", ["Extractive", "Abstractive"])
+
+        message = st.text_area(
+            "Enter review to perform Text Summarisation on", "Text Here", height=200
+        )
+
+        if st.button("Summarise"):
+            with st.spinner("Summarising..."):
+                summarise_result = text_summarisation(message)
+                time.sleep(2)
+            st.success(f"Review summary: {summarise_result}")
 
     with eda:
-        pass
+
+        st.markdown("#### Our data is from: ")
+        st.markdown("Raw data here")
+
+        raw_data, cleaned_data = read_in_data()
+
+        with st.expander("More info about data here", expanded=False):
+            st.dataframe(data=raw_data, height=300)
+
+        st.markdown("Post preprocessing")
+
+        with st.container():
+            st.dataframe(data=cleaned_data, width=3000, height=300)
+
+        positive_sentiments = cleaned_data.loc[cleaned_data["class"] == 1, "length"]
+        negative_sentiments = cleaned_data.loc[cleaned_data["class"] == 0, "length"]
+
+        # Plot histogram
+        hist_data = [positive_sentiments, negative_sentiments]
+
+        # create distplot
+        fig = ff.create_distplot(
+            hist_data, group_labels=["Positive", "Negative"], bin_size=[0.1, 0.25, 0.5]
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
 
     hide_streamlit_style = """
             <style>
