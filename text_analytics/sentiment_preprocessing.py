@@ -40,7 +40,7 @@ def sentiment_text_processing(series: pd.Series) -> pd.Series:
     series = remove_stopwords(series)
 
     logger.info("Replacing film / movie")
-    series = series.str.replace(pat=r"film|movie", repl="", regex=True)
+    series = series.str.replace(pat=r"film|movie|[0-9]+", repl="", regex=True)
 
     logger.info("Tokenizing words")
     series = series.apply(lambda sentence: tokenize_words(sentence, tokenizer="word"))
