@@ -38,3 +38,8 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 	find . -type d -name ".ipynb_checkpoints" -delete
+
+
+gen_files: 
+	python3 text_analytics/sentiment_analysis/bow_preprocessing.py
+	python3 text_analytics/sentiment_analysis/split_dataset.py
