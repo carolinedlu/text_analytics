@@ -1,3 +1,5 @@
+import argparse
+import logging
 import pickle
 import warnings
 from datetime import datetime
@@ -5,15 +7,13 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.model_selection import (
-    RandomizedSearchCV,
-    StratifiedShuffleSplit,
-    train_test_split,
-)
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.model_selection import RandomizedSearchCV, StratifiedShuffleSplit
 from sklearn.pipeline import Pipeline
 from text_analytics.config import (
     BASE_SCORER,
     CV_SPLIT,
+    DATA_PATH,
     MODEL_PATH,
     N_JOBS,
     RANDOM_STATE,
@@ -29,7 +29,7 @@ from text_analytics.helpers import (
 warnings.filterwarnings("ignore")
 
 
-class RandomForest:
+class RandomForestReviews:
     def __init__(
         self,
         X_train: pd.DataFrame = None,
@@ -70,13 +70,17 @@ class RandomForest:
         with open(save_path, "wb") as file:
             pickle.dump(self.best_model, file)
 
+        print(f"Model saved to {save_path}")
+
     def load_model(self, file_name: str) -> None:
 
         model_path = MODEL_PATH / f"{file_name}.pkl"
         with open(model_path, "rb") as file:
             self.best_model = pickle.load(file)
 
-    def train(self):
+        print(f"Model loaded from {model_path}")
+
+    def train(self, iters: int = 20):
 
         # setup the hyperparameter grid
         rf_param_grid = {
@@ -95,7 +99,7 @@ class RandomForest:
         self.trainer = RandomizedSearchCV(
             estimator=rf_pipe,
             param_distributions=rf_param_grid,
-            n_iter=1,
+            n_iter=iters,
             scoring=self.scorer,
             refit="F_score",
             cv=self.cv_split,
@@ -138,11 +142,37 @@ class RandomForest:
 
 
 if __name__ == "__main__":
-    pass
-    # ----------- POC in test_random_forest.ipynb -----------
 
-    # df = pd.read_csv(SENTIMENT_CLEANED_DATA_PATH)
-    # ... X, y =
-    # X_train, X_test, y_train, y_test = train_test_split(
-    #     X, y, test_size=0.2, stratify=y, random_state=RANDOM_STATE
-    # )
+    log_fmt = "%(asctime)s:%(name)s:%(levelname)s - %(message)s"
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
+    logger = logging.getLogger()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--iters", default=15, required=False)
+    args = parser.parse_args()
+
+    logger.info("Reading in files")
+    train = pd.read_parquet(DATA_PATH / "sentiment_train.parquet")
+    test = pd.read_parquet(DATA_PATH / "sentiment_test.parquet")
+
+    X_train, y_train = train["preprocessed_review"], train["class"]
+    X_test, y_test = test["preprocessed_review"], test["class"]
+
+    logger.info("Vectorising files")
+    count_vectorizer = CountVectorizer(ngram_range=(1, 2), min_df=10)
+
+    X_train = count_vectorizer.fit_transform(X_train)
+    X_test = count_vectorizer.transform(X_test)
+
+    rf = RandomForestReviews(
+        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test
+    )
+
+    logger.info("Training model")
+    rf.train(int(args.iters))
+
+    logger.info("Evaluating model")
+    rf.evaluate()
+
+    logger.info("Saving model")
+    rf.save_model()

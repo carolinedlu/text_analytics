@@ -1,10 +1,26 @@
 import os
 from pathlib import Path
 
+from sklearn.metrics import fbeta_score, make_scorer
+from sklearn.model_selection import StratifiedShuffleSplit
+
+# ------
+# PATHS
+# ------
+
 ROOT_DIR = Path(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 DATA_PATH = ROOT_DIR / "data"
-RAW_DATA_PATH = ROOT_DIR / "data" / "imdb_data.csv"
-SENTIMENT_CLEANED_DATA_PATH = ROOT_DIR / "data" / "sentiment_cleaned_data.csv"
+RAW_DATA_PATH = ROOT_DIR / "data" / "imdb_data.parquet"
+SENTIMENT_CLEANED_DATA_PATH = ROOT_DIR / "data" / "sentiment_cleaned_data.parquet"
+MODEL_PATH = ROOT_DIR / "models"
+ARTIFACTS_PATH = ROOT_DIR / "artifacts"
+RANDOM_STATE = 123
+N_JOBS = -1
+BASE_SCORER = {"AUC": "roc_auc", "F_score": make_scorer(fbeta_score, beta=1)}
+CV_SPLIT = StratifiedShuffleSplit(
+    n_splits=5, test_size=0.2, train_size=0.8, random_state=RANDOM_STATE
+)
+
 
 ACRONYMS = {
     "asap": "as soon as possible",
@@ -41,6 +57,10 @@ def print_config() -> None:
     DATA_PATH: {DATA_PATH}
     RAW_DATA_PATH: {RAW_DATA_PATH}
     SENTIMENT_CLEANED_DATA_PATH: {SENTIMENT_CLEANED_DATA_PATH}
+    MODEL_PATH: {MODEL_PATH}
+    RANDOM_STATE: {RANDOM_STATE}
+    N_JOBS: {N_JOBS}
+    BASE_SCORER: {BASE_SCORER}
     """
     )
 
