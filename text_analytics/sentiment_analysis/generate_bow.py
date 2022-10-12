@@ -2,18 +2,12 @@ import logging
 
 import numpy as np
 import pandas as pd
-
 from text_analytics.config import RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
-from text_analytics.preprocessing import (
-    convert_abbreviations,
-    convert_lowercase,
-    lemmatizer,
-    remove_html_tags,
-    remove_non_alnum,
-    remove_punctuation,
-    remove_stopwords,
-    tokenize_words,
-)
+from text_analytics.preprocessing import (convert_abbreviations,
+                                          convert_lowercase, lemmatizer,
+                                          remove_html_tags, remove_non_alnum,
+                                          remove_punctuation, remove_stopwords,
+                                          tokenize_words)
 
 
 def sentiment_text_processing(series: pd.Series) -> pd.Series:
@@ -73,4 +67,4 @@ if __name__ == "__main__":
 
     print(df.head())
     logger.info("Writing to project bucket")
-    df.to_csv(SENTIMENT_CLEANED_DATA_PATH)
+    df.to_parquet(SENTIMENT_CLEANED_DATA_PATH)
