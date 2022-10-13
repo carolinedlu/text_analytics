@@ -1,4 +1,4 @@
-from text_analytics import config, sentiment_preprocessing
+from text_analytics import config
 
 if __name__ == "__main__":
     pass
