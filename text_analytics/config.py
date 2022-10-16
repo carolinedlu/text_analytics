@@ -10,8 +10,9 @@ from sklearn.model_selection import StratifiedShuffleSplit
 
 ROOT_DIR = Path(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 DATA_PATH = ROOT_DIR / "data"
-RAW_DATA_PATH = ROOT_DIR / "data" / "imdb_data.parquet"
-SENTIMENT_CLEANED_DATA_PATH = ROOT_DIR / "data" / "sentiment_cleaned_data.parquet"
+RAW_DATA_PATH = DATA_PATH / "imdb_data.parquet"
+SENTIMENT_CLEANED_DATA_PATH = DATA_PATH / "sentiment_cleaned_data.parquet"
+SUMMARISER_CLEANED_DATA_PATH = DATA_PATH / "summariser_cleaned_data.parquet"
 MODEL_PATH = ROOT_DIR / "models"
 ARTIFACTS_PATH = ROOT_DIR / "artifacts"
 RANDOM_STATE = 123
