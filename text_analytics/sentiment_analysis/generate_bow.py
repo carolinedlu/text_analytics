@@ -2,12 +2,17 @@ import logging
 
 import numpy as np
 import pandas as pd
-from text_analytics.config import RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
-from text_analytics.preprocessing import (convert_abbreviations,
-                                          convert_lowercase, lemmatizer,
-                                          remove_html_tags, remove_non_alnum,
-                                          remove_punctuation, remove_stopwords,
-                                          tokenize_words)
+from text_analytics.config import DATA_PATH, RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
+from text_analytics.preprocessing import (
+    convert_abbreviations,
+    convert_lowercase,
+    lemmatizer,
+    remove_html_tags,
+    remove_non_alnum,
+    remove_punctuation,
+    remove_stopwords,
+    tokenize_words,
+)
 
 
 def sentiment_text_processing(series: pd.Series) -> pd.Series:
@@ -56,11 +61,12 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger()
 
-    df = pd.read_csv(RAW_DATA_PATH)
+    df = pd.read_parquet(RAW_DATA_PATH)
 
     logger.info("Preprocessing reviews")
     df.drop_duplicates(inplace=True)
     df["preprocessed_review"] = sentiment_text_processing(series=df["review"])
+    df["preprocessed_review"] = df["preprocessed_review"].astype(str)
     df["length"] = df["preprocessed_review"].apply(len)
     df["class"] = np.where(df["sentiment"] == "positive", 1, 0)
     df.drop(columns=["review", "sentiment"], inplace=True)

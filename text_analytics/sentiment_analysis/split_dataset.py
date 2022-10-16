@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     logger.info("Reading in file")
 
-    sentiment_bow = pd.read_csv(SENTIMENT_CLEANED_DATA_PATH)
+    sentiment_bow = pd.read_parquet(SENTIMENT_CLEANED_DATA_PATH)
 
     logger.info("Train test splitting")
     train, test = train_test_split(
