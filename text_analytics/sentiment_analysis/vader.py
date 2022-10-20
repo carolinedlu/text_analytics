@@ -61,11 +61,12 @@ class VaderReviews:
         if isinstance(self.data, str):
             return (self.compound_score, self.prediction)
 
-        result = pd.concat(
+        self.result = pd.concat(
             [self.data, self.compound_score, self.prediction], axis="columns"
         )
-        result.columns = ["review", "sentiment", "compound_score", "prediction"]
-        print(result.head())
+        self.result.columns = ["review", "sentiment", "compound_score", "prediction"]
+
+        print(self.result.head())
 
 
 if __name__ == "__main__":
@@ -90,4 +91,4 @@ if __name__ == "__main__":
     vr.extract_compound_score()
     vr.extract_prediction()
     vr.return_vader_scores()
-    print("done")
+    logger.info("Done")
