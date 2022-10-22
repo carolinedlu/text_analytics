@@ -1,4 +1,3 @@
-import os
 from typing import Type, Union
 
 import matplotlib.pyplot as plt
@@ -17,7 +16,9 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
-from text_analytics.config import ARTIFACTS_PATH
+from text_analytics.config import ARTIFACTS_PATH, ROOT_DIR
+
+plt.style.use(ROOT_DIR / "styles" / "base.mplstyle")
 
 
 def evaluate_tuning(tuner: Union[Type[RandomizedSearchCV], Type[GridSearchCV]]) -> None:
@@ -34,7 +35,7 @@ def evaluate_tuning(tuner: Union[Type[RandomizedSearchCV], Type[GridSearchCV]]) 
     TEST AUC: {tuner.cv_results_["mean_test_AUC"][tuner.best_index_]:.2%}
     TEST AUC SD: {tuner.cv_results_["std_test_AUC"][tuner.best_index_]:.2%}
     TRAIN F_score: {tuner.cv_results_['mean_train_F_score'][tuner.best_index_]:.2%}
-    TEST F_score: {tuner.cv_results_['mean_test_F_score'][tuner.best_index_]:.2%}  
+    TEST F_score: {tuner.cv_results_['mean_test_F_score'][tuner.best_index_]:.2%}
     """
     )
 
