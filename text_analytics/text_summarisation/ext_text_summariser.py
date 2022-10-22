@@ -1,6 +1,6 @@
 # importing libraries
 from collections import defaultdict
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -9,12 +9,11 @@ from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 from rouge import Rouge
-
-from text_analytics.config import RAW_DATA_PATH
+from text_analytics.config import SUMMARISER_CLEANED_DATA_PATH
 
 
 class ExtractiveTextSummarizer:
-    def __init__(self, article: str) -> None:
+    def __init__(self, article: Union[str, pd.DataFrame]) -> None:
         self.article = article
         self.frequency_table = defaultdict(int)
 
@@ -98,18 +97,24 @@ class ExtractiveTextSummarizer:
 
 
 if __name__ == "__main__":
-    df = pd.read_csv(RAW_DATA_PATH)
+    df = pd.read_parquet(SUMMARISER_CLEANED_DATA_PATH)
 
-    article = df.sample(1).index[0]
-    print(f"Original Review: \n{article}")
-    print("-" * 200)
-    extractive_summarizer = ExtractiveTextSummarizer(article=article)
-    result = extractive_summarizer.run_article_summary()
-    print(f"Summarised Review: \n{result}")
-    print("-" * 200)
-    # this line is POC for now since we don't have the reference text
-    print(
-        extractive_summarizer.get_rouge_score(
-            hypothesis_text=result, reference_text=result
+    result = []
+    articles = df.loc[:, "cleaned_reviews"].sample(3).values
+
+    for review in articles:
+        print(f"Original Review: \n{review}")
+        print("-" * 200)
+        extractive_summarizer = ExtractiveTextSummarizer(article=review)
+        review_summary = extractive_summarizer.run_article_summary()
+        result.append(review_summary)
+
+        print(f"Summarised Review: \n{review_summary}")
+        print("-" * 200)
+
+        # this line is POC for now since we don't have the reference text
+        print(
+            extractive_summarizer.get_rouge_score(
+                hypothesis_text=review_summary, reference_text=review_summary
+            )
         )
-    )
