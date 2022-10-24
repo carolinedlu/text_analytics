@@ -3,10 +3,12 @@ import logging
 import pickle
 import warnings
 from datetime import datetime
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.model_selection import RandomizedSearchCV, StratifiedShuffleSplit
 from sklearn.pipeline import Pipeline
@@ -17,7 +19,6 @@ from text_analytics.config import (
     MODEL_PATH,
     N_JOBS,
     RANDOM_STATE,
-    SENTIMENT_CLEANED_DATA_PATH,
 )
 from text_analytics.helpers import (
     calculate_report_metrics,
@@ -38,7 +39,9 @@ class RandomForestReviews:
         y_test: pd.DataFrame = None,
         scorer: dict = BASE_SCORER,
         cv_split: StratifiedShuffleSplit = CV_SPLIT,
+        vectoriser: Optional = None,
         model: xgb.XGBRFClassifier = None,
+        hpt: Optional = None,
     ) -> None:
         self.X_train = X_train
         self.y_train = y_train
@@ -47,14 +50,20 @@ class RandomForestReviews:
         self.scorer = scorer
         self.cv_split = cv_split
 
+        if vectoriser is None:
+            vectoriser = TfidfVectorizer(ngram_range=(1, 2), min_df=0.005)
+
+        self.vec = vectoriser
+
         if model is None:
-            model = xgb.XGBRFClassifier(
-                objective="binary:logistic",
-                booster="gbtree",
+            model = RandomForestClassifier(
+                n_estimators=100,
+                criterion="gini",
+                bootstrap=True,
                 n_jobs=N_JOBS,
                 random_state=RANDOM_STATE,
-                use_label_encoder=False,
-                verbosity=0,
+                warm_start=True,
+                verbose=0,
             )
 
         self.model = model
@@ -62,7 +71,17 @@ class RandomForestReviews:
         self.best_model = None
 
         self.timestamp = datetime.now().strftime("%d_%H_%M")
-        self.file_name = f"sentiment_xgb_rf_{self.timestamp}"
+        self.file_name = f"sent_rf_{self.timestamp}"
+
+        if hpt is None:
+            hpt = {
+                "rf__criterion": ["gini", "entropy"],
+                "rf__n_estimators": np.arange(100, 500, 100),
+                "rf__max_depth": np.arange(50, 80, 10),
+                "rf__max_features": ["log2", "sqrt"],
+                "rf__bootstrap": [True, False],
+            }
+        self.hpt = hpt
 
     def save_model(self) -> None:
         save_path = MODEL_PATH / f"{self.file_name}.pkl"
@@ -82,29 +101,18 @@ class RandomForestReviews:
 
     def train(self, iters: int = 20):
 
-        # setup the hyperparameter grid
-        rf_param_grid = {
-            "rf__n_estimators": np.arange(100, 500, 100),
-            "rf__learning_rate": np.linspace(0.3, 1, 8),
-            "rf__subsample": np.arange(0.6, 0.9, 0.1),
-            "rf__colsample_bynode": np.linspace(0.6, 0.9, 5),
-            "rf__max_depth": np.arange(3, 10, 1),
-            "rf__reg_lambda": np.linspace(0, 1, 9),
-        }
-
         # build the pipeline
-        rf_pipe = Pipeline([("rf", self.model)])
+        rf_pipe = Pipeline([("vec", self.vec), ("rf", self.model)])
 
         # cross validate model with RandomizedSearch
         self.trainer = RandomizedSearchCV(
             estimator=rf_pipe,
-            param_distributions=rf_param_grid,
+            param_distributions=self.hpt,
             n_iter=iters,
             scoring=self.scorer,
             refit="F_score",
             cv=self.cv_split,
             return_train_score=True,
-            n_jobs=N_JOBS,
             verbose=10,
             random_state=RANDOM_STATE,
         )
@@ -140,6 +148,23 @@ class RandomForestReviews:
             auc=report.get("auroc"),
         )
 
+    def predict_csv(
+        self, csv_to_predict: pd.DataFrame, reviews_column: str = "preprocessed_review"
+    ) -> pd.DataFrame:
+
+        if reviews_column not in csv_to_predict.columns:
+            raise ValueError("Column not in dataframe")
+
+        X = csv_to_predict[reviews_column]
+
+        try:
+            csv_to_predict["predicted_class"] = self.best_model.predict(X)
+        except BaseException as err:
+            print(f"Unexpected err: {err}, Type: {type(err)}")
+            raise
+
+        return csv_to_predict
+
 
 if __name__ == "__main__":
 
@@ -149,6 +174,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--iters", default=15, required=False)
+    parser.add_argument(
+        "--vec", choices=["count", "tfidf"], default="tfidf", required=False
+    )
     args = parser.parse_args()
 
     logger.info("Reading in files")
@@ -158,14 +186,21 @@ if __name__ == "__main__":
     X_train, y_train = train["preprocessed_review"], train["class"]
     X_test, y_test = test["preprocessed_review"], test["class"]
 
-    logger.info("Vectorising files")
-    count_vectorizer = CountVectorizer(ngram_range=(1, 2), min_df=10)
-
-    X_train = count_vectorizer.fit_transform(X_train)
-    X_test = count_vectorizer.transform(X_test)
+    logger.info(
+        f"Instantiating vectoriser: {'TfidfVectorizer' if str(args.vec) == 'tfidf' else 'CountVectoriser'}"
+    )
+    vectoriser = (
+        TfidfVectorizer(ngram_range=(1, 2), min_df=0.005)
+        if str(args.vec) == "tfidf"
+        else CountVectorizer(ngram_range=(1, 2), min_df=0.005)
+    )
 
     rf = RandomForestReviews(
-        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test,
+        y_test=y_test,
+        vectoriser=vectoriser,
     )
 
     logger.info("Training model")
