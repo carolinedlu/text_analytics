@@ -1,0 +1,2 @@
+model_weights_final* filter=lfs diff=lfs merge=lfs -text
+checkpoint filter=lfs diff=lfs merge=lfs -text
