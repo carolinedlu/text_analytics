@@ -1,10 +1,12 @@
+import argparse
 import logging
 import pickle
 import warnings
 from datetime import datetime
+from typing import Optional
 
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, StratifiedShuffleSplit
 from sklearn.pipeline import Pipeline
@@ -36,6 +38,8 @@ class LogisticRegressionReviews:
         model: LogisticRegression = None,
         scorer: dict = BASE_SCORER,
         cv_split: StratifiedShuffleSplit = CV_SPLIT,
+        vectoriser: Optional = None,
+        hpt: Optional = None,
     ) -> None:
         self.X_train = X_train
         self.y_train = y_train
@@ -46,11 +50,11 @@ class LogisticRegressionReviews:
 
         if model is None:
             model = LogisticRegression(
-                solver="saga",
+                solver="liblinear",
                 penalty="none",
                 n_jobs=N_JOBS,
                 random_state=RANDOM_STATE,
-                max_iter=5000,
+                max_iter=2000,
                 warm_start=True,
             )
 
@@ -58,8 +62,22 @@ class LogisticRegressionReviews:
         self.trainer = None
         self.best_model = None
 
+        if vectoriser is None:
+            vectoriser = TfidfVectorizer(ngram_range=(1, 2), min_df=0.005)
+
+        if hpt is None:
+            hpt = {
+                # regularization param: higher C = less regularization
+                "log_reg__C": [0.01, 0.1, 1, 10],
+                # specifies kernel type to be used
+                "log_reg__penalty": ["l1", "l2"],
+            }
+
+        self.hpt = hpt
+        self.vec = vectoriser
+
         self.timestamp = datetime.now().strftime("%d_%H_%M")
-        self.file_name = f"sentiment_sk_logreg_{self.timestamp}"
+        self.file_name = f"sent_logreg_{self.timestamp}"
 
     def save_model(self) -> None:
         save_path = MODEL_PATH / f"{self.file_name}.pkl"
@@ -75,25 +93,17 @@ class LogisticRegressionReviews:
 
     def train(self):
 
-        log_reg_param_grid = {
-            # regularization param: higher C = less regularization
-            "log_reg__C": [0.001, 0.01, 0.1, 1, 10, 100, 1000],
-            # specifies kernel type to be used
-            "log_reg__penalty": ["l1", "l2", "none"],
-        }
-
         # build the pipeline
-        log_reg_pipe = Pipeline([("log_reg", self.model)])
+        log_reg_pipe = Pipeline([("vec", self.vec), ("log_reg", self.model)])
 
         # cross validate model with GridSearch
         self.trainer = GridSearchCV(
             estimator=log_reg_pipe,
-            param_grid=log_reg_param_grid,
+            param_grid=self.hpt,
             scoring=self.scorer,
             refit="F_score",
             cv=self.cv_split,
             return_train_score=True,
-            n_jobs=N_JOBS,
             verbose=10,
         )
 
@@ -128,12 +138,23 @@ class LogisticRegressionReviews:
             auc=report.get("auroc"),
         )
 
+    def predict_csv(self, csv_to_predict: pd.DataFrame) -> pd.DataFrame:
+        X = csv_to_predict["review"]
+        y_pred = self.best_model.predict(X)
+        return pd.concat([csv_to_predict, y_pred], axis=1)
+
 
 if __name__ == "__main__":
 
     log_fmt = "%(asctime)s:%(name)s:%(levelname)s - %(message)s"
     logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--vec", choices=["count", "tfidf"], default="tfidf", required=False
+    )
+    args = parser.parse_args()
 
     logger.info("Reading in files")
     train = pd.read_parquet(DATA_PATH / "sentiment_train.parquet")
@@ -142,14 +163,21 @@ if __name__ == "__main__":
     X_train, y_train = train["preprocessed_review"], train["class"]
     X_test, y_test = test["preprocessed_review"], test["class"]
 
-    logger.info("Vectorising files")
-    count_vectorizer = CountVectorizer(ngram_range=(1, 2), min_df=10)
-
-    X_train = count_vectorizer.fit_transform(X_train)
-    X_test = count_vectorizer.transform(X_test)
+    logger.info(
+        f"Instantiating vectoriser: {'TfidfVectorizer' if str(args.vec) == 'tfidf' else 'CountVectoriser'}"
+    )
+    vectoriser = (
+        TfidfVectorizer(ngram_range=(1, 2), min_df=0.005)
+        if str(args.vec) == "tfidf"
+        else CountVectorizer(ngram_range=(1, 2), min_df=0.005)
+    )
 
     lr = LogisticRegressionReviews(
-        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test,
+        y_test=y_test,
+        vectoriser=vectoriser,
     )
 
     logger.info("Training model")
