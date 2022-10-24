@@ -5,19 +5,13 @@ import warnings
 from datetime import datetime
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, StratifiedShuffleSplit
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
-from text_analytics.config import (
-    BASE_SCORER,
-    CV_SPLIT,
-    DATA_PATH,
-    MODEL_PATH,
-    N_JOBS,
-    RANDOM_STATE,
-)
+from text_analytics.config import BASE_SCORER, CV_SPLIT, DATA_PATH, MODEL_PATH
 from text_analytics.helpers import (
     calculate_report_metrics,
     evaluate_tuning,
@@ -28,17 +22,17 @@ from text_analytics.helpers import (
 warnings.filterwarnings("ignore")
 
 
-class LogisticRegressionReviews:
+class NaiveBayesReviews:
     def __init__(
         self,
         X_train: pd.DataFrame = None,
         y_train: pd.DataFrame = None,
         X_test: pd.DataFrame = None,
         y_test: pd.DataFrame = None,
-        model: LogisticRegression = None,
         scorer: dict = BASE_SCORER,
         cv_split: StratifiedShuffleSplit = CV_SPLIT,
         vectoriser: Optional = None,
+        model: MultinomialNB = None,
         hpt: Optional = None,
     ) -> None:
         self.X_train = X_train
@@ -48,36 +42,24 @@ class LogisticRegressionReviews:
         self.scorer = scorer
         self.cv_split = cv_split
 
+        if vectoriser is None:
+            vectoriser = TfidfVectorizer(ngram_range=(1, 2), min_df=0.005)
+
+        self.vec = vectoriser
+
         if model is None:
-            model = LogisticRegression(
-                solver="liblinear",
-                penalty="none",
-                n_jobs=N_JOBS,
-                random_state=RANDOM_STATE,
-                max_iter=2000,
-                warm_start=True,
-            )
+            model = MultinomialNB()
 
         self.model = model
         self.trainer = None
         self.best_model = None
 
-        if vectoriser is None:
-            vectoriser = TfidfVectorizer(ngram_range=(1, 2), min_df=0.005)
+        self.timestamp = datetime.now().strftime("%d_%H_%M")
+        self.file_name = f"sent_nb_{self.timestamp}"
 
         if hpt is None:
-            hpt = {
-                # regularization param: higher C = less regularization
-                "log_reg__C": [0.01, 0.1, 1, 10],
-                # specifies kernel type to be used
-                "log_reg__penalty": ["l1", "l2"],
-            }
-
+            hpt = {"nb__alpha": np.arange(0.1, 2, 0.1)}
         self.hpt = hpt
-        self.vec = vectoriser
-
-        self.timestamp = datetime.now().strftime("%d_%H_%M")
-        self.file_name = f"sent_logreg_{self.timestamp}"
 
     def save_model(self) -> None:
         save_path = MODEL_PATH / f"{self.file_name}.pkl"
@@ -85,20 +67,24 @@ class LogisticRegressionReviews:
         with open(save_path, "wb") as file:
             pickle.dump(self.best_model, file)
 
+        print(f"Model saved to {save_path}")
+
     def load_model(self, file_name: str) -> None:
 
         model_path = MODEL_PATH / f"{file_name}.pkl"
         with open(model_path, "rb") as file:
             self.best_model = pickle.load(file)
 
+        print(f"Model loaded from {model_path}")
+
     def train(self):
 
         # build the pipeline
-        log_reg_pipe = Pipeline([("vec", self.vec), ("log_reg", self.model)])
+        nb_pipe = Pipeline([("vec", self.vec), ("nb", self.model)])
 
-        # cross validate model with GridSearch
+        # cross validate model with RandomizedSearch
         self.trainer = GridSearchCV(
-            estimator=log_reg_pipe,
+            estimator=nb_pipe,
             param_grid=self.hpt,
             scoring=self.scorer,
             refit="F_score",
@@ -138,10 +124,22 @@ class LogisticRegressionReviews:
             auc=report.get("auroc"),
         )
 
-    def predict_csv(self, csv_to_predict: pd.DataFrame) -> pd.DataFrame:
-        X = csv_to_predict["review"]
-        y_pred = self.best_model.predict(X)
-        return pd.concat([csv_to_predict, y_pred], axis=1)
+    def predict_csv(
+        self, csv_to_predict: pd.DataFrame, reviews_column: str = "preprocessed_review"
+    ) -> pd.DataFrame:
+
+        if reviews_column not in csv_to_predict.columns:
+            raise ValueError("Column not in dataframe")
+
+        X = csv_to_predict[reviews_column]
+
+        try:
+            csv_to_predict["predicted_class"] = self.best_model.predict(X)
+        except BaseException as err:
+            print(f"Unexpected err: {err}, Type: {type(err)}")
+            raise
+
+        return csv_to_predict
 
 
 if __name__ == "__main__":
@@ -151,6 +149,7 @@ if __name__ == "__main__":
     logger = logging.getLogger()
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--iters", default=15, required=False)
     parser.add_argument(
         "--vec", choices=["count", "tfidf"], default="tfidf", required=False
     )
@@ -172,7 +171,7 @@ if __name__ == "__main__":
         else CountVectorizer(ngram_range=(1, 2), min_df=0.005)
     )
 
-    lr = LogisticRegressionReviews(
+    nb = NaiveBayesReviews(
         X_train=X_train,
         y_train=y_train,
         X_test=X_test,
@@ -181,10 +180,10 @@ if __name__ == "__main__":
     )
 
     logger.info("Training model")
-    lr.train()
+    nb.train()
 
     logger.info("Evaluating model")
-    lr.evaluate()
+    nb.evaluate()
 
     logger.info("Saving model")
-    lr.save_model()
+    nb.save_model()

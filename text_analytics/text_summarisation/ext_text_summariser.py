@@ -9,13 +9,14 @@ from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 from rouge import Rouge
-from text_analytics.config import SUMMARISER_CLEANED_DATA_PATH
+from text_analytics.config import DATA_PATH
 
 
 class ExtractiveTextSummarizer:
     def __init__(self, article: Union[str, pd.DataFrame]) -> None:
         self.article = article
         self.frequency_table = defaultdict(int)
+        self.rouge = Rouge()
 
     def _create_dictionary_table(self, stemmer: Any = None) -> dict:
 
@@ -91,30 +92,28 @@ class ExtractiveTextSummarizer:
     def get_rouge_score(
         self, hypothesis_text: str, reference_text: str
     ) -> npt.ArrayLike:
-        rouge = Rouge()
-        scores = rouge.get_scores(hypothesis_text, reference_text)
+        scores = self.rouge.get_scores(hypothesis_text, reference_text)
         return scores
 
 
 if __name__ == "__main__":
-    df = pd.read_parquet(SUMMARISER_CLEANED_DATA_PATH)
 
+    df = pd.read_csv(DATA_PATH / "review_evaluation.csv")
     result = []
-    articles = df.loc[:, "cleaned_reviews"].sample(3).values
+    articles = df.loc[:, "review"]
+    reference_summary = df.loc[:, "Summary"]
 
-    for review in articles:
+    for review, reference_text in zip(articles, reference_summary):
+        extractive_summarizer = ExtractiveTextSummarizer(article=review)
         print(f"Original Review: \n{review}")
         print("-" * 200)
-        extractive_summarizer = ExtractiveTextSummarizer(article=review)
         review_summary = extractive_summarizer.run_article_summary()
         result.append(review_summary)
 
+        rouge_score = extractive_summarizer.get_rouge_score(
+            hypothesis_text=review_summary, reference_text=review_summary
+        )
+
         print(f"Summarised Review: \n{review_summary}")
         print("-" * 200)
-
-        # this line is POC for now since we don't have the reference text
-        print(
-            extractive_summarizer.get_rouge_score(
-                hypothesis_text=review_summary, reference_text=review_summary
-            )
-        )
+        print(rouge_score)
