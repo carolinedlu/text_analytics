@@ -1,65 +1,73 @@
 # importing libraries
-from collections import defaultdict
-from typing import Any, Union
+import warnings
 
-import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
-from nltk.tokenize import sent_tokenize, word_tokenize
 from rouge import Rouge
-from text_analytics.config import SUMMARISER_CLEANED_DATA_PATH
+from text_analytics.config import DATA_PATH
+from transformers import pipeline
 
-# pip install transformers
-from transformers import pieline
-import warnings
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 
 class AbstractiveTextSummarizer:
-    def __init__(self, summarizer1, summarizer2) -> None:
-        self.article = article
-        self.frequency_table = defaultdict(int)
-        self.summarizer1 = summarizer1
-        self.summarizer2 = summarizer2
+    def __init__(
+        self, rough_summariser: pipeline = None, refine_summariser: pipeline = None
+    ) -> None:
+        if rough_summariser is None:
+            rough_summariser = pipeline(
+                "summarization", model="t5-base", tokenizer="t5-base", framework="tf"
+            )
+        if refine_summariser is None:
+            refine_summariser = pipeline(
+                "summarization", model="facebook/bart-large-cnn"
+            )
 
-    def run_article_summary(self, article):
-        intermediate_output = self.summarizer1(article)[0]['summary_text']
-        output = self.summarizer2(intermediate_output, min_length=25, max_length=60)[0]['summary_text']
+        self.rough_summariser = rough_summariser
+        self.refine_summariser = refine_summariser
+        self.rouge = Rouge()
+
+    def run_article_summary(self, article: str) -> str:
+        intermediate_output = self.rough_summariser(
+            article, min_length=60, max_length=200
+        )[0]["summary_text"]
+        output = self.refine_summariser(
+            intermediate_output, min_length=25, max_length=60
+        )[0]["summary_text"]
         return output
-
-        return article_summary
 
     def get_rouge_score(
         self, hypothesis_text: str, reference_text: str
     ) -> npt.ArrayLike:
-        rouge = Rouge()
-        scores = rouge.get_scores(hypothesis_text, reference_text)
+        scores = self.rouge.get_scores(hypothesis_text, reference_text)
         return scores
 
 
 if __name__ == "__main__":
-    summarizer1 = pipeline("summarization", model="t5-base", tokenizer="t5-base", framework="tf")
-    summarizer2 = pipeline("summarization", model="facebook/bart-large-cnn")
-    abstracive_summarizer = AbstractiveTextSummarizer(summarizer1, summarizer2)
 
-    df = pd.read_parquet(SUMMARISER_CLEANED_DATA_PATH)
+    rough_summariser = pipeline(
+        "summarization", model="t5-base", tokenizer="t5-base", framework="tf"
+    )
+
+    refine_summariser = pipeline("summarization", model="facebook/bart-large-cnn")
+    abstractive_summarizer = AbstractiveTextSummarizer(
+        rough_summariser=rough_summariser, refine_summariser=refine_summariser
+    )
+
+    df = pd.read_csv(DATA_PATH / "review_evaluation.csv")
     result = []
-    articles = df.loc[:, "cleaned_reviews"].sample(3).values
+    articles = df.loc[:, "review"]
+    reference_summary = df.loc[:, "Summary"]
 
-    for review in articles:
+    for review, reference_text in zip(articles, reference_summary):
         print(f"Original Review: \n{review}")
         print("-" * 200)
         review_summary = abstractive_summarizer.run_article_summary(review)
+        rouge_score = abstractive_summarizer.get_rouge_score(
+            hypothesis_text=review_summary, reference_text=reference_text
+        )
         result.append(review_summary)
 
         print(f"Summarised Review: \n{review_summary}")
         print("-" * 200)
-
-        # this line is POC for now since we don't have the reference text
-        print(
-            extractive_summarizer.get_rouge_score(
-                hypothesis_text=review_summary, reference_text=review_summary
-            )
-        )
+        print(rouge_score)
