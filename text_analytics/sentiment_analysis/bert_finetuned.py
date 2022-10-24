@@ -1,4 +1,3 @@
-# tensorflow related libraries
 from typing import Optional
 
 import tensorflow as tf
@@ -6,7 +5,6 @@ from text_analytics.config import MODEL_PATH
 from transformers import DistilBertConfig, DistilBertTokenizerFast, TFDistilBertModel
 
 MAX_LENGTH = 512
-MAX_LENGTH_FULL = 128
 CHUNK_SIZE = 256
 LAYER_DROPOUT = 0.1
 RANDOM_STATE = 2022
@@ -26,7 +24,7 @@ class BertReviews:
     def __init__(self, bert_model, ids: Optional = None, attention: Optional = None):
 
         self.model = build_model(bert_model)
-        self.model.load_weights(f"{MODEL_PATH}/model_weights/model_weights_final")
+        self.model.load_weights(f"{MODEL_PATH}/bert_model_weights/model_weights_final")
         self.ids = ids
         self.attention = attention
 
@@ -36,7 +34,7 @@ class BertReviews:
 
 
 def build_model(transformer, max_length=MAX_LENGTH):
-    """ "
+    """
     Build a model off of the DistilBERT architecture
 
     Input:
