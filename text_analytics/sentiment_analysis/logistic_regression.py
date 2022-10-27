@@ -3,7 +3,7 @@ import logging
 import pickle
 import warnings
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -142,6 +142,30 @@ class LogisticRegressionReviews:
         X = csv_to_predict["review"]
         y_pred = self.best_model.predict(X)
         return pd.concat([csv_to_predict, y_pred], axis=1)
+
+    def predict_single_review(self, article: List[str]) -> Tuple[str, List]:
+
+        vectorised_features = self.best_model[0].transform(article)
+        explainable_tokens = self.best_model[0].inverse_transform(vectorised_features)[
+            0
+        ]
+
+        logits = dict(
+            zip(
+                self.best_model[0].get_feature_names_out(),
+                self.best_model[1].coef_[0],
+            )
+        )
+
+        token_scores = sorted(
+            [f"{token}, {logits.get(token)}" for token in explainable_tokens],
+            key=lambda score: abs(float(score.split(", ")[1])),
+            reverse=True,
+        )
+
+        prediction = self.best_model.predict(article)
+
+        return "Positive" if prediction > 0.5 else "Negative", token_scores
 
 
 if __name__ == "__main__":
