@@ -180,7 +180,7 @@ class RandomForestReviews:
         )
 
         token_scores = sorted(
-            [f"{token}, {logits.get(token)}" for token in explainable_tokens],
+            [f"{token}, {logits.get(token):.05f}" for token in explainable_tokens],
             key=lambda score: abs(float(score.split(", ")[1])),
             reverse=True,
         )
