@@ -3,7 +3,7 @@ import logging
 import pickle
 import warnings
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -164,6 +164,30 @@ class RandomForestReviews:
             raise
 
         return csv_to_predict
+
+    def predict_single_review(self, article: List[str]) -> Tuple[str, List]:
+
+        vectorised_features = self.best_model[0].transform(article)
+        explainable_tokens = self.best_model[0].inverse_transform(vectorised_features)[
+            0
+        ]
+
+        logits = dict(
+            zip(
+                self.best_model[0].get_feature_names_out(),
+                self.best_model[1].feature_importances_,
+            )
+        )
+
+        token_scores = sorted(
+            [f"{token}, {logits.get(token):.05f}" for token in explainable_tokens],
+            key=lambda score: abs(float(score.split(", ")[1])),
+            reverse=True,
+        )
+
+        prediction = self.best_model.predict(article)
+
+        return "Positive" if prediction > 0.5 else "Negative", token_scores
 
 
 if __name__ == "__main__":

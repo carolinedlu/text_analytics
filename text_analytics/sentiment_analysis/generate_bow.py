@@ -2,17 +2,13 @@ import logging
 
 import numpy as np
 import pandas as pd
-from text_analytics.config import DATA_PATH, RAW_DATA_PATH, SENTIMENT_CLEANED_DATA_PATH
-from text_analytics.preprocessing import (
-    convert_abbreviations,
-    convert_lowercase,
-    lemmatizer,
-    remove_html_tags,
-    remove_non_alnum,
-    remove_punctuation,
-    remove_stopwords,
-    tokenize_words,
-)
+from text_analytics.config import (DATA_PATH, RAW_DATA_PATH,
+                                   SENTIMENT_CLEANED_DATA_PATH)
+from text_analytics.preprocessing import (convert_abbreviations,
+                                          convert_lowercase, remove_html_tags,
+                                          remove_non_alnum, remove_punctuation,
+                                          remove_stopwords, stemming,
+                                          tokenize_words)
 
 
 def sentiment_text_processing(series: pd.Series) -> pd.Series:
@@ -48,7 +44,7 @@ def sentiment_text_processing(series: pd.Series) -> pd.Series:
     series = remove_punctuation(series)
 
     logger.info("Stemming / Lemmatizing")
-    series = series.apply(lambda arr: lemmatizer(arr))
+    series = series.apply(lambda arr: stemming(arr))
 
     logger.info("Remove non-alphabetic/numeric")
     series = remove_non_alnum(series)

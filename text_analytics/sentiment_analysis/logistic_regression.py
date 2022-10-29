@@ -3,27 +3,17 @@ import logging
 import pickle
 import warnings
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, StratifiedShuffleSplit
 from sklearn.pipeline import Pipeline
-from text_analytics.config import (
-    BASE_SCORER,
-    CV_SPLIT,
-    DATA_PATH,
-    MODEL_PATH,
-    N_JOBS,
-    RANDOM_STATE,
-)
-from text_analytics.helpers import (
-    calculate_report_metrics,
-    evaluate_tuning,
-    save_confusion_matrix,
-    save_roc_curve,
-)
+from text_analytics.config import (BASE_SCORER, CV_SPLIT, DATA_PATH,
+                                   MODEL_PATH, N_JOBS, RANDOM_STATE)
+from text_analytics.helpers import (calculate_report_metrics, evaluate_tuning,
+                                    save_confusion_matrix, save_roc_curve)
 
 warnings.filterwarnings("ignore")
 
@@ -138,10 +128,29 @@ class LogisticRegressionReviews:
             auc=report.get("auroc"),
         )
 
-    def predict_csv(self, csv_to_predict: pd.DataFrame) -> pd.DataFrame:
-        X = csv_to_predict["review"]
-        y_pred = self.best_model.predict(X)
-        return pd.concat([csv_to_predict, y_pred], axis=1)
+    def predict_single_review(self, article: List[str]) -> Tuple[str, List]:
+
+        vectorised_features = self.best_model[0].transform(article)
+        explainable_tokens = self.best_model[0].inverse_transform(vectorised_features)[
+            0
+        ]
+
+        logits = dict(
+            zip(
+                self.best_model[0].get_feature_names_out(),
+                self.best_model[1].coef_[0],
+            )
+        )
+
+        token_scores = sorted(
+            [f"{token}, {logits.get(token):.05f}" for token in explainable_tokens],
+            key=lambda score: abs(float(score.split(", ")[1])),
+            reverse=True,
+        )
+
+        prediction = self.best_model.predict(article)
+
+        return "Positive" if prediction > 0.5 else "Negative", token_scores
 
 
 if __name__ == "__main__":
