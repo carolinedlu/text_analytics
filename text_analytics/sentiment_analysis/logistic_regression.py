@@ -10,20 +10,10 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, StratifiedShuffleSplit
 from sklearn.pipeline import Pipeline
-from text_analytics.config import (
-    BASE_SCORER,
-    CV_SPLIT,
-    DATA_PATH,
-    MODEL_PATH,
-    N_JOBS,
-    RANDOM_STATE,
-)
-from text_analytics.helpers import (
-    calculate_report_metrics,
-    evaluate_tuning,
-    save_confusion_matrix,
-    save_roc_curve,
-)
+from text_analytics.config import (BASE_SCORER, CV_SPLIT, DATA_PATH,
+                                   MODEL_PATH, N_JOBS, RANDOM_STATE)
+from text_analytics.helpers import (calculate_report_metrics, evaluate_tuning,
+                                    save_confusion_matrix, save_roc_curve)
 
 warnings.filterwarnings("ignore")
 
@@ -137,11 +127,6 @@ class LogisticRegressionReviews:
             model_name=self.file_name,
             auc=report.get("auroc"),
         )
-
-    def predict_csv(self, csv_to_predict: pd.DataFrame) -> pd.DataFrame:
-        X = csv_to_predict["review"]
-        y_pred = self.best_model.predict(X)
-        return pd.concat([csv_to_predict, y_pred], axis=1)
 
     def predict_single_review(self, article: List[str]) -> Tuple[str, List]:
 
