@@ -3,15 +3,17 @@
 # --------
 
 import time
+from random import Random
 from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 import streamlit as st
+import transformers
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
-from transformers import DistilBertTokenizerFast, pipeline
+from transformers import DistilBertTokenizerFast
 
 from text_analytics.config import (
     RAW_DATA_PATH,
@@ -36,6 +38,7 @@ from text_analytics.sentiment_analysis.logistic_regression import (
     LogisticRegressionReviews,
 )
 from text_analytics.sentiment_analysis.naive_bayes import NaiveBayesReviews
+from text_analytics.sentiment_analysis.random_forest import RandomForestReviews
 from text_analytics.text_summarisation.abs_text_summariser import (
     AbstractiveTextSummarizer,
 )
@@ -61,7 +64,7 @@ def read_in_data():
     return raw_data, sentiment_cleaned_data, summariser_cleaned_data
 
 
-@st.cache
+@st.cache(ttl=120)
 def tokeniser(input_text: str, tokeniser: str) -> str:
 
     input_text = convert_lowercase(input_text)
@@ -80,14 +83,12 @@ def named_entity_recogniser(input_text: str) -> str:
     pass
 
 
-@st.cache(suppress_st_warning=True)
-def load_in_bert():
-    sentiment_bert_model = get_sentiment_bert_finetuned()
-    tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
-
-    return sentiment_bert_model, tokenizer
+@st.cache
+def convert_df(df: pd.DataFrame):
+    return df.to_csv().encode("utf-8")
 
 
+@st.cache(ttl=120)
 def sentiment_preprocessing(input_text: str) -> str:
 
     article_transformed = remove_html_tags(pd.Series([input_text]))
@@ -104,48 +105,73 @@ def sentiment_preprocessing(input_text: str) -> str:
     return article_transformed
 
 
-def sentiment_analysis(input_text: str, model_to_use: str) -> Tuple[str]:
+@st.cache(ttl=120)
+def sentiment_column_preprocessing(input_series: pd.Series) -> pd.Series:
 
-    if model_to_use == "Pre-trained BERT":
-        sentiment_bert_model, tokenizer = load_in_bert()
-        ids, attention = fast_encode(tokenizer=tokenizer, texts=[input_text])
-        sentiment_bert_model.ids = ids
-        sentiment_bert_model.attention = attention
-        predictions = sentiment_bert_model.predict_value()
-        output = ["Positive" if score[0] > 0.5 else "Negative" for score in predictions]
-        return output
-
-    article_transformed = sentiment_preprocessing(input_text)
-    if model_to_use == "Logistic Regression":
-        model = LogisticRegressionReviews()
-        model.load_model(file_name="log_reg_best")
-    if model_to_use == "Random Forest":
-        model = RandomForestReviews()
-        model.load_model(file_name="random_forest_best")
-    if model_to_use == "Naive Bayes":
-        model = NaiveBayesReviews()
-        model.load_model(file_name="naive_bayes_best")
-
-    prediction, token_scores = model.predict_single_review(
-        article=[article_transformed]
+    article_transformed = remove_html_tags(input_series)
+    article_transformed = convert_lowercase(article_transformed)
+    article_transformed = convert_abbreviations(article_transformed)
+    article_transformed = remove_stopwords(article_transformed)
+    article_transformed = article_transformed.apply(
+        lambda review: tokenize_words(review, tokenizer="word")
     )
-    return prediction, token_scores, f"{model.best_model[1]}"
+    article_transformed = remove_punctuation(article_transformed)
+    article_transformed = article_transformed.apply(lambda review: stemming(review))
+    article_transformed = remove_non_alnum(article_transformed)
+    article_transformed = article_transformed.apply(lambda review: " ".join(review))
+    return article_transformed
 
 
-def text_summarisation(input_text: str, model_to_use: str) -> str:
-    if model_to_use == "Extractive":
-        extractive_summarizer = ExtractiveTextSummarizer(article=input_text)
-        result = extractive_summarizer.run_article_summary()
+@st.cache(allow_output_mutation=True)
+def load_bert_model():
+    return get_sentiment_bert_finetuned()
 
-        return result
 
-    if model_to_use == "Abstractive":
-        abstractive_summarizer = AbstractiveTextSummarizer(
-            rough_summariser=rough_summariser, refine_summariser=refine_summariser
-        )
-        input_text_summary = abstractive_summarizer.run_article_summary(input_text)
-        return input_text_summary
-    return
+@st.cache(allow_output_mutation=True)
+def load_bert_tokeniser():
+    return DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
+
+
+@st.cache(allow_output_mutation=True)
+def load_lr_model():
+    lr = LogisticRegressionReviews()
+    lr.load_model(file_name="log_reg_best")
+    return lr
+
+
+@st.cache(allow_output_mutation=True)
+def load_nb_model():
+    nb = NaiveBayesReviews()
+    nb.load_model(file_name="naive_bayes_best")
+    return nb
+
+
+@st.cache(allow_output_mutation=True)
+def load_rf_model():
+    rf = RandomForestReviews()
+    rf.load_model(file_name="random_forest_best")
+    return rf
+
+
+@st.cache(allow_output_mutation=True, show_spinner=False)
+def load_ext_text_summariser():
+    extractive_summarizer = ExtractiveTextSummarizer(article="")
+    return extractive_summarizer
+
+
+@st.cache(allow_output_mutation=True, show_spinner=False)
+def load_abs_text_summariser():
+    rough_summariser = transformers.pipeline(
+        "summarization", model="t5-base", tokenizer="t5-base", framework="tf"
+    )
+    refine_summariser = transformers.pipeline(
+        "summarization", model="facebook/bart-large-cnn"
+    )
+
+    abstractive_summariser = AbstractiveTextSummarizer(
+        rough_summariser=rough_summariser, refine_summariser=refine_summariser
+    )
+    return abstractive_summariser
 
 
 # ---------
@@ -154,12 +180,6 @@ def text_summarisation(input_text: str, model_to_use: str) -> str:
 
 
 def main():
-
-    load_in_bert()
-    rough_summariser = pipeline(
-        "summarization", model="t5-base", tokenizer="t5-base", framework="tf"
-    )
-    refine_summariser = pipeline("summarization", model="facebook/bart-large-cnn")
 
     with st.container():
         st.markdown("## Group 4 - Text Analytics with Movie Reviews")
@@ -173,8 +193,14 @@ def main():
             )
         st.subheader("NLP Processing Tasks: ")
 
-    tokenise, sentiment, summarise, eda = st.tabs(
-        ["Tokenise Text", "Sentiment Analysis", "Text Summarisation", "Source Data"]
+    tokenise, sentiment, summarise, upload_csv_file, eda = st.tabs(
+        [
+            "Tokenise Text",
+            "Sentiment Analysis",
+            "Text Summarisation",
+            "Upload File",
+            "Source Data",
+        ]
     )
 
     with tokenise:
@@ -202,11 +228,48 @@ def main():
 
         if st.button("Analyse"):
             with st.spinner("Calculating sentiment..."):
-                sentiment_result = sentiment_analysis(
-                    input_text=message, model_to_use=sentiment_analysis_choice
-                )
-                time.sleep(2)
-            st.success(f"Review sentiment: \n{sentiment_result}")
+
+                if sentiment_analysis_choice == "Random Forest":
+
+                    rf = load_rf_model()
+                    article_transformed = sentiment_preprocessing(input_text=message)
+
+                    prediction, tokens = rf.predict_single_review(
+                        article=[article_transformed]
+                    )
+
+                elif sentiment_analysis_choice == "Logistic Regression":
+                    lr = load_lr_model()
+                    article_transformed = sentiment_preprocessing(input_text=message)
+                    prediction, tokens = lr.predict_single_review(
+                        article=[article_transformed]
+                    )
+
+                elif sentiment_analysis_choice == "Naive Bayes":
+                    nb = load_nb_model()
+                    article_transformed = sentiment_preprocessing(input_text=message)
+                    prediction, tokens = nb.predict_single_review(
+                        article=[article_transformed]
+                    )
+
+                else:
+                    sentiment_bert_model = load_bert_model()
+                    tokenizer = load_bert_tokeniser()
+
+                    ids, attention = fast_encode(tokenizer=tokenizer, texts=[message])
+                    sentiment_bert_model.ids = ids
+                    sentiment_bert_model.attention = attention
+                    predictions = sentiment_bert_model.predict_value()
+                    prediction = [
+                        "Positive" if score[0] > 0.5 else "Negative"
+                        for score in predictions
+                    ][0]
+                    tokens = ["-"]
+
+                token_disp = " / ".join(tokens)
+                time.sleep(1)
+            st.success(f"Review sentiment: \n{prediction}")
+            st.success(f"Tokens: {token_disp}")
 
     with summarise:
 
@@ -221,11 +284,74 @@ def main():
 
         if st.button("Summarise"):
             with st.spinner("Summarising..."):
-                summarise_result = text_summarisation(
-                    input_text=message, model_to_use=summariser_choice
-                )
+
+                if summariser_choice == "Extractive":
+                    ext_summariser = load_ext_text_summariser()
+                    ext_summariser.article = message
+                    summarise_result = ext_summariser.run_article_summary()
+                else:
+                    abstractive_summariser = load_abs_text_summariser()
+                    summarise_result = abstractive_summariser.run_article_summary(
+                        message
+                    )
                 time.sleep(2)
             st.success(f"Review summary: \n{summarise_result}")
+
+    with upload_csv_file:
+        st.markdown("#### Upload a CSV and perform a text analytics task")
+        task_choice = st.radio(
+            "Task to perform", ["Sentiment Analysis", "Text Summarisation"]
+        )
+
+        file_uploaded = st.file_uploader(
+            label="File to upload", accept_multiple_files=False
+        )
+
+        if st.button("Analyse reviews") and file_uploaded:
+            with st.spinner("Analysing..."):
+                if task_choice == "Sentiment Analysis":
+                    df_reviews = pd.read_csv(file_uploaded, header=0, index_col=None)
+
+                    st.write(df_reviews)
+                    processed_series = sentiment_column_preprocessing(
+                        df_reviews.loc[:, "review"]
+                    )
+
+                    lr = load_lr_model()
+                    sentiment_result = lr.best_model.predict(processed_series)
+                    df_reviews["sentiment_result"] = sentiment_result
+
+                    csv = convert_df(df_reviews)
+                    if st.download_button(
+                        label="Download file",
+                        data=csv,
+                        file_name="sentiment_results.csv",
+                        mime="text/csv",
+                    ):
+                        st.write("Download successful")
+
+                else:
+                    df_reviews = pd.read_csv(file_uploaded, header=0, index_col=None)
+                    st.write(df_reviews)
+
+                    summarised_results = []
+                    for review in df_reviews["review"].values:
+                        ext_summariser = load_ext_text_summariser()
+                        ext_summariser.article = review
+
+                        _result = ext_summariser.run_article_summary()
+                        summarised_results.append(_result)
+
+                    st.write(summarised_results)
+                    df_reviews["summarised_result"] = summarised_results
+                    csv = convert_df(df_reviews)
+                    if st.download_button(
+                        label="Download file",
+                        data=csv,
+                        file_name="summarised_results.csv",
+                        mime="text/csv",
+                    ):
+                        st.write("Download successful")
 
     with eda:
 
