@@ -54,7 +54,7 @@ st.set_page_config(layout="wide")
 # -------
 
 
-@st.cache
+@st.cache(ttl=120, show_spinner=False)
 def read_in_data():
 
     raw_data = pd.read_parquet(RAW_DATA_PATH)
@@ -64,7 +64,7 @@ def read_in_data():
     return raw_data, sentiment_cleaned_data, summariser_cleaned_data
 
 
-@st.cache(ttl=120)
+@st.cache(ttl=120, show_spinner=False)
 def tokeniser(input_text: str, tokeniser: str) -> str:
 
     input_text = convert_lowercase(input_text)
@@ -83,12 +83,12 @@ def named_entity_recogniser(input_text: str) -> str:
     pass
 
 
-@st.cache
+@st.cache(show_spinner=False)
 def convert_df(df: pd.DataFrame):
     return df.to_csv().encode("utf-8")
 
 
-@st.cache(ttl=120)
+@st.cache(ttl=120, show_spinner=False)
 def sentiment_preprocessing(input_text: str) -> str:
 
     article_transformed = remove_html_tags(pd.Series([input_text]))
@@ -105,7 +105,7 @@ def sentiment_preprocessing(input_text: str) -> str:
     return article_transformed
 
 
-@st.cache(ttl=120)
+@st.cache(ttl=120, show_spinner=False)
 def sentiment_column_preprocessing(input_series: pd.Series) -> pd.Series:
 
     article_transformed = remove_html_tags(input_series)
@@ -122,31 +122,31 @@ def sentiment_column_preprocessing(input_series: pd.Series) -> pd.Series:
     return article_transformed
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def load_bert_model():
     return get_sentiment_bert_finetuned()
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def load_bert_tokeniser():
     return DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def load_lr_model():
     lr = LogisticRegressionReviews()
     lr.load_model(file_name="log_reg_best")
     return lr
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def load_nb_model():
     nb = NaiveBayesReviews()
     nb.load_model(file_name="naive_bayes_best")
     return nb
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def load_rf_model():
     rf = RandomForestReviews()
     rf.load_model(file_name="random_forest_best")
@@ -188,7 +188,15 @@ def main():
 
             st.write(
                 """
-                Sub-caption
+                **Proof of concept** \n
+                Demonstration of an internal tool to automate the manual and time-intensive processes of filtering and reviewing data scraped from review sites and online forums. \n
+                Team members: \n 
+                Clarence San | 
+                Fang Siyu |
+                Huang Jing |
+                Khoo Wei Lun | 
+                Leslie Long |
+                Ma Anbo
                 """
             )
         st.subheader("NLP Processing Tasks: ")
@@ -356,34 +364,34 @@ def main():
     with eda:
 
         st.markdown("#### Our data is from: ")
-        st.markdown("Raw data here")
+        st.markdown("Raw data")
 
         raw_data, sentiment_cleaned_data, _ = read_in_data()
 
-        with st.expander("More info about data here", expanded=False):
+        with st.expander("More info about data here", expanded=True):
             st.dataframe(data=raw_data, height=300)
 
         st.markdown("Post preprocessing")
 
-        with st.container():
+        with st.expander("Link to repository", expanded=True):
             st.dataframe(data=sentiment_cleaned_data, width=3000, height=300)
 
-        positive_sentiments = sentiment_cleaned_data.loc[
-            sentiment_cleaned_data["class"] == 1, "length"
-        ]
-        negative_sentiments = sentiment_cleaned_data.loc[
-            sentiment_cleaned_data["class"] == 0, "length"
-        ]
+        # positive_sentiments = sentiment_cleaned_data.loc[
+        #     sentiment_cleaned_data["class"] == 1, "length"
+        # ]
+        # negative_sentiments = sentiment_cleaned_data.loc[
+        #     sentiment_cleaned_data["class"] == 0, "length"
+        # ]
 
-        # Plot histogram
-        hist_data = [positive_sentiments, negative_sentiments]
+        # # Plot histogram
+        # hist_data = [positive_sentiments, negative_sentiments]
 
-        # create distplot
-        fig = ff.create_distplot(
-            hist_data, group_labels=["Positive", "Negative"], bin_size=[0.1, 0.25, 0.5]
-        )
+        # # create distplot
+        # fig = ff.create_distplot(
+        #     hist_data, group_labels=["Positive", "Negative"], bin_size=[0.1, 0.25, 0.5]
+        # )
 
-        st.plotly_chart(fig, use_container_width=True)
+        # st.plotly_chart(fig, use_container_width=True)
 
     hide_streamlit_style = """
             <style>
