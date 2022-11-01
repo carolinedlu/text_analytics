@@ -111,7 +111,7 @@ if __name__ == "__main__":
         result.append(review_summary)
 
         rouge_score = extractive_summarizer.get_rouge_score(
-            hypothesis_text=review_summary, reference_text=review_summary
+            hypothesis_text=review_summary, reference_text=reference_text
         )
 
         print(f"Summarised Review: \n{review_summary}")
