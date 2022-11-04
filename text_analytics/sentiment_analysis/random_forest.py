@@ -7,11 +7,11 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.model_selection import RandomizedSearchCV, StratifiedShuffleSplit
 from sklearn.pipeline import Pipeline
+
 from text_analytics.config import (
     BASE_SCORER,
     CV_SPLIT,
@@ -40,7 +40,7 @@ class RandomForestReviews:
         scorer: dict = BASE_SCORER,
         cv_split: StratifiedShuffleSplit = CV_SPLIT,
         vectoriser: Optional = None,
-        model: xgb.XGBRFClassifier = None,
+        model: Optional[RandomForestClassifier] = None,
         hpt: Optional = None,
     ) -> None:
         self.X_train = X_train
