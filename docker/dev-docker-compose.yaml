@@ -1,0 +1,16 @@
+version: "3"
+services:
+  jupyterlab:
+    platform: "linux/amd64"
+    image: csanry/text:latest
+    build:
+      context: ../.
+      dockerfile: Dockerfile
+    volumes:
+      - .././:/project/
+    ports:
+      - "0.0.0.0:9000:9000"
+      - "0.0.0.0:8501:8501"
+    command: "/bin/bash -c 'source activate ta22 &&\ 
+    python3 text_analytics/download_nltk.py &&\
+    jupyter lab --no-browser --ip=0.0.0.0 --port=9000 --allow-root --notebook-dir=/project/ --NotebookApp.token=\"\"'"
